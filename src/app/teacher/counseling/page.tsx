@@ -36,17 +36,36 @@ export default function TeacherCounselingPage() {
     }, []);
 
     async function loadSessions() {
-        const { data, error } = await supabase
+        const { data: sessionsData, error: sessionsError } = await supabase
             .from("counseling_sessions")
-            .select(`
-                id, title, created_at, updated_at, messages,
-                student:profiles!counseling_sessions_student_id_fkey(id, name, student_number)
-            `)
+            .select("id, title, created_at, updated_at, messages, student_id")
             .order("updated_at", { ascending: false });
 
-        if (!error && data) {
-            setSessions(data as any);
+        if (sessionsError || !sessionsData) {
+            setLoading(false);
+            return;
         }
+
+        // 학생 정보 조회
+        const studentIds = [...new Set(sessionsData.map((s: any) => s.student_id))];
+        const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("id, name, student_number")
+            .in("id", studentIds);
+
+        const profileMap = new Map(profilesData?.map((p: any) => [p.id, p]) || []);
+
+        // 데이터 병합
+        const enrichedSessions = sessionsData.map((session: any) => ({
+            ...session,
+            student: profileMap.get(session.student_id) || {
+                id: session.student_id,
+                name: null,
+                student_number: null
+            },
+        }));
+
+        setSessions(enrichedSessions);
         setLoading(false);
     }
 
