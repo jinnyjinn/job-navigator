@@ -110,16 +110,40 @@ export async function POST(req: NextRequest) {
                 },
             });
 
+            let userId: string;
+
             if (createError) {
-                results.push({ name, email, password, studentNumber, success: false, error: createError.message });
-                continue;
+                if (createError.message.includes("already been registered") || createError.message.includes("email_exists")) {
+                    // 이미 등록된 사용자인 경우 ID 조회
+                    const { data: existingProfile } = await adminClient
+                        .from("profiles")
+                        .select("id")
+                        .eq("email", email)
+                        .maybeSingle();
+
+                    if (existingProfile) {
+                        userId = existingProfile.id;
+                    } else {
+                        const { data: { users } } = await adminClient.auth.admin.listUsers();
+                        const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+                        if (existingUser) {
+                            userId = existingUser.id;
+                        } else {
+                            results.push({ name, email, password, studentNumber, success: false, error: "중복된 이메일 계정 정보를 조회할 수 없습니다." });
+                            continue;
+                        }
+                    }
+                } else {
+                    results.push({ name, email, password, studentNumber, success: false, error: createError.message });
+                    continue;
+                }
+            } else {
+                userId = userData.user.id;
             }
 
-            const userId = userData.user.id;
-
-            // 5b. 프로필 upsert
+            // 5b. 프로필 upsert (student_number 포함)
             await adminClient.from("profiles").upsert(
-                { id: userId, name, role: "student", email },
+                { id: userId, name, role: "student", email, student_number: studentNumber },
                 { onConflict: "id" }
             );
 
@@ -136,8 +160,9 @@ export async function POST(req: NextRequest) {
             } else {
                 results.push({ name, email, password, studentNumber, success: true });
             }
-        } catch (err: any) {
-            results.push({ name, email, password, studentNumber, success: false, error: err.message });
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            results.push({ name, email, password, studentNumber, success: false, error: errorMessage });
         }
     }
 

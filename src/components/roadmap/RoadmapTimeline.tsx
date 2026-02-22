@@ -19,8 +19,6 @@ export function RoadmapTimeline({ items, onUpdate }: RoadmapTimelineProps) {
     const supabase = createClient();
 
     const handleStatusChange = async (id: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'done' ? 'prep' : 'done'; // Toggle for simplicity or cycle through
-        // Better UX: Dropdown or cycling Prep -> Ing -> Done
         // Let's implement Cycle: Prep -> Ing -> Done -> Prep
         let nextStatus = 'prep';
         if (currentStatus === 'prep') nextStatus = 'ing';
@@ -48,20 +46,7 @@ export function RoadmapTimeline({ items, onUpdate }: RoadmapTimelineProps) {
         }
     };
 
-    const getIcon = (title: string) => {
-        if (title.includes("자격증")) return <Award />;
-        if (title.includes("프로젝트")) return <Code />;
-        if (title.includes("취업") || title.includes("실습")) return <Briefcase />;
-        return <Star />;
-    };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'done': return '#22c55e'; // green-500
-            case 'ing': return '#3b82f6'; // blue-500
-            default: return '#94a3b8'; // slate-400
-        }
-    };
 
     return (
         <div className="py-4">
@@ -77,7 +62,7 @@ export function RoadmapTimeline({ items, onUpdate }: RoadmapTimelineProps) {
             */}
             <div className="relative border-l-2 border-slate-200 ml-4 md:ml-6 space-y-10 pb-10">
                 {items.map((item, index) => {
-                    const isLast = index === items.length - 1;
+
                     const statusColor = item.status === 'done' ? "bg-green-500" : item.status === 'ing' ? "bg-blue-500" : "bg-slate-300";
 
                     return (

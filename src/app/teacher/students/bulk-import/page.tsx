@@ -64,7 +64,7 @@ export default function BulkImportPage() {
         loadClassrooms();
     }, []);
 
-    // CSV 파싱
+    // CSV 파싱 (students.csv 형식 자동 감지: student_number,name,... 또는 이름,학번,...)
     const parseCSV = (text: string): { students: ParsedStudent[]; error: string | null } => {
         const lines = text.trim().split("\n").filter((l) => l.trim());
         if (lines.length === 0) return { students: [], error: "내용이 비어 있습니다." };
@@ -72,14 +72,49 @@ export default function BulkImportPage() {
         const students: ParsedStudent[] = [];
         const errors: string[] = [];
 
-        // 헤더 행 건너뛰기
-        const startIdx = lines[0].includes("이름") || lines[0].toLowerCase().includes("name") ? 1 : 0;
+        // 헤더 행 여부 및 컬럼 순서 자동 감지
+        const firstLineLower = lines[0].toLowerCase();
+        const hasHeader =
+            firstLineLower.includes("이름") ||
+            firstLineLower.includes("name") ||
+            firstLineLower.includes("student_number") ||
+            firstLineLower.includes("학번");
+
+        const startIdx = hasHeader ? 1 : 0;
+
+        // 헤더 기반 컬럼 인덱스 결정 (students.csv: student_number,name,password,...)
+        let nameIdx = 0;
+        let studentNumIdx = 1;
+        let emailIdx = 2;
+
+        if (hasHeader) {
+            const headerCols = lines[0].split(",").map((c) => c.trim().toLowerCase());
+            const snIdx = headerCols.findIndex(
+                (c) => c === "student_number" || c === "학번" || c === "studentnumber"
+            );
+            const nmIdx = headerCols.findIndex(
+                (c) => c === "name" || c === "이름"
+            );
+            const emIdx = headerCols.findIndex(
+                (c) => c.includes("email") || c.includes("이메일")
+            );
+            if (snIdx >= 0) studentNumIdx = snIdx;
+            if (nmIdx >= 0) nameIdx = nmIdx;
+            if (emIdx >= 0) emailIdx = emIdx;
+        }
 
         for (let i = startIdx; i < lines.length; i++) {
-            const cols = lines[i].split(",").map((c) => c.trim());
-            const name = cols[0] || "";
-            const studentNumber = cols[1] || "";
-            const email = cols[2] || undefined;
+            const line = lines[i].trim();
+            // 쉼표가 있으면 CSV로 처리, 없으면 공백/탭(\s)으로 분리 시도
+            let cols = line.split(",").map((c) => c.trim());
+
+            if (cols.length === 1 && /\s/.test(line)) {
+                cols = line.split(/\s+/).map((c) => c.trim()).filter(Boolean);
+            }
+
+            const name = cols[nameIdx] || "";
+            const studentNumber = cols[studentNumIdx] || "";
+            const email = cols[emailIdx] || undefined;
 
             if (!name) {
                 errors.push(`${i + 1}행: 이름이 없습니다.`);
@@ -155,8 +190,8 @@ export default function BulkImportPage() {
         setSubmitting(true);
 
         try {
-            // Include /job-navigator basePath in the fetch URL
-            const res = await fetch("/job-navigator/api/teacher/bulk-register", {
+            // API 경로 수정: 배포 환경 호환성을 위해 루트 경로 기준 호출
+            const res = await fetch("/api/teacher/bulk-register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -238,7 +273,7 @@ export default function BulkImportPage() {
                                     <p className="font-semibold">등록 방법</p>
                                     <ul className="list-disc list-inside space-y-0.5 text-blue-700">
                                         <li>CSV 파일을 업로드하거나 아래 텍스트 영역에 직접 붙여넣기 하세요.</li>
-                                        <li>형식: <code className="bg-blue-100 px-1 rounded text-xs">이름,학번,이메일(선택)</code></li>
+                                        <li>형식: <code className="bg-blue-100 px-1 rounded text-xs">이름 학번 이메일</code> (쉼표, 공백, 탭 모두 가능)</li>
                                         <li>초기 비밀번호: <code className="bg-blue-100 px-1 rounded text-xs">student + 학번</code> (예: student20240001)</li>
                                         <li>이메일 미입력 시: <code className="bg-blue-100 px-1 rounded text-xs">학번@jobnavigator.com</code> 으로 자동 생성</li>
                                     </ul>
@@ -299,7 +334,7 @@ export default function BulkImportPage() {
                                     />
                                 </div>
                             </div>
-                            <CardDescription>CSV 형식: 이름, 학번, 이메일(선택사항) — 한 줄에 학생 1명</CardDescription>
+                            <CardDescription>형식: 이름 학번 이메일(선택) — 쉼표나 공백으로 구분 가능</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <textarea
@@ -358,6 +393,7 @@ export default function BulkImportPage() {
                                 <table className="w-full text-sm">
                                     <thead className="bg-slate-50 border-b">
                                         <tr>
+                                            <th className="px-4 py-2.5 text-left font-medium text-slate-600 w-12">번호</th>
                                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">이름</th>
                                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">학번</th>
                                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">로그인 이메일</th>
@@ -367,6 +403,7 @@ export default function BulkImportPage() {
                                     <tbody className="divide-y">
                                         {parsedStudents.map((s, i) => (
                                             <tr key={i} className="hover:bg-slate-50">
+                                                <td className="px-4 py-2.5 text-slate-400 text-xs">{i + 1}</td>
                                                 <td className="px-4 py-2.5 font-medium">{s.name}</td>
                                                 <td className="px-4 py-2.5 text-slate-600">{s.studentNumber}</td>
                                                 <td className="px-4 py-2.5 text-slate-600 font-mono text-xs">
@@ -443,7 +480,8 @@ export default function BulkImportPage() {
                                 <table className="w-full text-sm">
                                     <thead className="bg-slate-50 border-b">
                                         <tr>
-                                            <th className="px-4 py-2.5 text-left font-medium text-slate-600 w-8"></th>
+                                            <th className="px-4 py-2.5 text-left font-medium text-slate-600 w-8">번호</th>
+                                            <th className="px-4 py-2.5 text-left font-medium text-slate-600 w-8">상태</th>
                                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">이름</th>
                                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">이메일</th>
                                             <th className="px-4 py-2.5 text-left font-medium text-slate-600">임시 비밀번호</th>
@@ -453,6 +491,7 @@ export default function BulkImportPage() {
                                     <tbody className="divide-y">
                                         {results.map((r, i) => (
                                             <tr key={i} className={r.success ? "hover:bg-slate-50" : "bg-red-50/50"}>
+                                                <td className="px-4 py-2.5 text-slate-400 text-xs">{i + 1}</td>
                                                 <td className="px-4 py-2.5">
                                                     {r.success
                                                         ? <CheckCircle2 className="h-4 w-4 text-green-500" />

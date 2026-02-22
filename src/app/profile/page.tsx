@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 import { CertificationsList } from "@/components/profile/CertificationsList";
 import { SkillsRadar } from "@/components/profile/SkillsRadar";
 import { SettingsTab } from "@/components/profile/SettingsTab";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
@@ -77,6 +78,16 @@ export default function ProfilePage() {
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            await supabase.auth.signOut();
+            window.location.href = "/auth";
+        } catch (error) {
+            console.error("Logout error:", error);
+            window.location.href = "/auth";
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex h-screen items-center justify-center">
@@ -89,7 +100,12 @@ export default function ProfilePage() {
 
     return (
         <div className="container max-w-4xl mx-auto py-8 px-4">
-            <h1 className="text-3xl font-bold mb-8">마이 페이지</h1>
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold">마이 페이지</h1>
+                <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" /> 로그아웃
+                </Button>
+            </div>
 
             <Tabs defaultValue="profile" className="space-y-6">
                 <TabsList className="grid w-full grid-cols-4">

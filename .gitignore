@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude AI (로컬 설정)
+.claude/
+
+# 임시 파일
+lint_results.txt

@@ -41,11 +41,12 @@ export function SettingsTab({ user }: { user: any }) {
     };
 
     const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-            toast.error("로그아웃 실패");
-        } else {
-            router.push("/auth");
+        try {
+            await supabase.auth.signOut();
+            window.location.href = "/auth";
+        } catch (error) {
+            console.error("Logout error:", error);
+            window.location.href = "/auth";
         }
     };
 

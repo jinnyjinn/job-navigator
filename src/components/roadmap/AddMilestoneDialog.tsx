@@ -44,11 +44,14 @@ export function AddMilestoneDialog({ open, onOpenChange, defaultGrade, onSuccess
 
     const supabase = createClient();
 
-    useEffect(() => {
+    // State sync when prop changes (during render is preferred for synchronous updates)
+    const [prevOpen, setPrevOpen] = useState(open);
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) {
             setGrade(defaultGrade.toString());
         }
-    }, [open, defaultGrade]);
+    }
 
     const handleTemplateChange = (val: string) => {
         setTemplate(val);

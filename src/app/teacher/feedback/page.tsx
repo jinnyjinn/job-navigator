@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, Send, CheckCircle2, Loader2 } from "lucide-react";
+import { Search, Send, CheckCircle2, Loader2, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 const FEEDBACK_LABELS: Record<string, string> = {
     encouragement: "칭찬",
@@ -152,7 +153,15 @@ export default function FeedbackPage() {
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-            <h1 className="text-2xl font-bold">피드백 관리</h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">피드백 관리</h1>
+                <Button asChild variant="outline" className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50">
+                    <Link href="/teacher/feedback/career-guides">
+                        <BookOpen className="h-4 w-4" />
+                        진로 가이드 일괄 등록
+                    </Link>
+                </Button>
+            </div>
 
             <div className="grid gap-8 lg:grid-cols-5">
                 {/* Left: Send Feedback Form */}

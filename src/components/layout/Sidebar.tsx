@@ -29,9 +29,13 @@ export function Sidebar({ role }: SidebarProps) {
     const supabase = createClient()
 
     const handleLogout = async () => {
-        await supabase.auth.signOut()
-        router.push("/auth")
-        router.refresh()
+        try {
+            await supabase.auth.signOut()
+            window.location.href = "/auth"
+        } catch (error) {
+            console.error("Logout error:", error)
+            window.location.href = "/auth"
+        }
     }
 
     const studentMenu = [

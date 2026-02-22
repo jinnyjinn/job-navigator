@@ -11,7 +11,7 @@ BEGIN
     FROM public.classrooms c
     JOIN public.classroom_members cm ON c.id = cm.classroom_id
     WHERE c.teacher_id = auth.uid()
-    AND cm.user_id = target_student_id
+    AND cm.student_id = target_student_id
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -40,6 +40,6 @@ CREATE POLICY "Teachers can view their students skills" ON public.skills
 CREATE POLICY "Teachers can view their students dday_events" ON public.dday_events
   FOR SELECT USING ( public.is_teacher_of(user_id) );
 
--- Policy for profiles (if not public)
+-- Policy for profiles
 CREATE POLICY "Teachers can view their students profiles" ON public.profiles
   FOR SELECT USING ( public.is_teacher_of(id) );

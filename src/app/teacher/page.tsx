@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
     Plus, Copy, Users, TrendingUp, AlertCircle, MessageSquare,
-    Bell, User, School, Calendar, Loader2
+    Bell, User, School, Calendar, Loader2, LogOut
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -17,7 +17,10 @@ import { calculateProgress } from "@/utils/gamification";
 import { getTimeAgo, getStudentStatus } from "@/utils/time";
 import CreateClassroomModal from "@/components/teacher/CreateClassroomModal";
 
+import { useRouter } from "next/navigation";
+
 export default function TeacherDashboard() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [teacherProfile, setTeacherProfile] = useState<any>(null);
     const [classrooms, setClassrooms] = useState<any[]>([]);
@@ -143,6 +146,16 @@ export default function TeacherDashboard() {
         setLoading(false);
     }
 
+    const handleLogout = async () => {
+        try {
+            await supabase.auth.signOut();
+            window.location.href = "/auth";
+        } catch (error) {
+            console.error("Logout error:", error);
+            window.location.href = "/auth";
+        }
+    };
+
     useEffect(() => {
         loadDashboard();
     }, []);
@@ -185,6 +198,9 @@ export default function TeacherDashboard() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" /> 로그아웃
+                    </Button>
                     <Link href="/teacher/feedback">
                         <Button variant="outline">
                             <MessageSquare className="mr-2 h-4 w-4" /> 메시지

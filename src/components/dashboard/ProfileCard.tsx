@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, GraduationCap, Building2, BookOpen, Briefcase, Users } from "lucide-react";
+import { Loader2, GraduationCap, Building2, BookOpen, Briefcase, Users, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { JoinClassDialog } from "./JoinClassDialog";
+import { useRouter } from "next/navigation";
 
 interface ProfileCardProps {
     profile: any;
@@ -18,6 +19,7 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     const [loading, setLoading] = useState(true);
     const [openJoin, setOpenJoin] = useState(false);
     const supabase = createClient();
+    const router = useRouter();
 
     useEffect(() => {
         async function fetchClassroom() {
@@ -45,14 +47,34 @@ export function ProfileCard({ profile }: ProfileCardProps) {
         }
 
         fetchClassroom();
-    }, [profile]);
+    }, [profile, supabase]);
+
+    const handleLogout = async () => {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            window.location.href = "/auth";
+        } catch (error) {
+            console.error("Logout error:", error);
+            window.location.href = "/auth"; // 에러가 나도 일단 이동 시도
+        }
+    };
 
     if (!profile) {
         return <ProfileCardSkeleton />;
     }
 
     return (
-        <Card className="overflow-hidden border-none bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg">
+        <Card className="relative overflow-hidden border-none bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg">
+            <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-2 text-white/70 hover:bg-white/10 hover:text-white"
+                onClick={handleLogout}
+            >
+                <LogOut className="mr-2 h-4 w-4" />
+                로그아웃
+            </Button>
             <CardContent className="p-6">
                 <div className="flex flex-col gap-6 md:flex-row md:items-center md:gap-8">
                     {/* Avatar Section */}

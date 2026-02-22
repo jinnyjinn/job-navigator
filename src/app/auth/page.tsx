@@ -37,21 +37,48 @@ export default function AuthPage() {
         e.preventDefault();
         setLoading(true);
 
-        const finalEmail = role === 'student' ? `${email}@jobnavigator.com` : email;
+        const isStudent = role === 'student';
+        let loginEmail = email.trim();
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email: finalEmail,
+        // 1. 학생이고 학번(이메일 형식이 아님)을 입력한 경우 이메일 조회 시도
+        if (isStudent && !loginEmail.includes('@')) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('student_number', loginEmail)
+                .eq('role', 'student')
+                .maybeSingle();
+
+            if (profile?.email) {
+                loginEmail = profile.email;
+            } else {
+                loginEmail = `${loginEmail}@jobnavigator.com`;
+            }
+        }
+
+        // 2. 로그인 시도
+        let { error } = await supabase.auth.signInWithPassword({
+            email: loginEmail,
             password,
         });
+
+        // 3. 만약 도메인이 붙어서 실패했다면 원본 입력값으로 한 번 더 시도 (특히 교사 계정 등)
+        if (error && loginEmail !== email.trim()) {
+            const retry = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password,
+            });
+            error = retry.error;
+        }
 
         if (error) {
             toast.error("로그인 실패", {
                 description: "아이디(학번) 또는 비밀번호를 확인해주세요.",
-            })
+            });
         } else {
-            // Get user to check role
+            // 성공 시 역할에 맞는 페이지로 이동
             const { data: { user: loggedInUser } } = await supabase.auth.getUser();
-            const userRole = loggedInUser?.user_metadata?.role || 'student';
+            const userRole = loggedInUser?.user_metadata?.role || role; // 메타데이터 우선, 없으면 현재 선택된 역할
             const target = userRole === 'teacher' ? '/teacher' : '/student';
 
             toast.success("로그인 성공");

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const BASE_PATH = "/job-navigator";
+const BASE_PATH = "";
 
 export async function proxy(request: NextRequest) {
   const fullPath = request.nextUrl.pathname;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Project } from "@/types/database";
@@ -47,7 +47,8 @@ export default function ProjectDetailPage() {
 
     const supabase = createClient();
 
-    async function loadProject() {
+    const loadProject = useCallback(async () => {
+        setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
 
         const { data, error } = await supabase
@@ -64,11 +65,11 @@ export default function ProjectDetailPage() {
         setProject(data as Project);
         setIsOwner(user?.id === data.user_id);
         setLoading(false);
-    }
+    }, [projectId, supabase]);
 
     useEffect(() => {
         loadProject();
-    }, [projectId]);
+    }, [loadProject]);
 
     const handleDelete = async () => {
         if (!confirm("이 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
