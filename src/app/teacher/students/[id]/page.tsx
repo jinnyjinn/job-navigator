@@ -26,6 +26,7 @@ export default function StudentDetailPage() {
     const [activityLogs, setActivityLogs] = useState<any[]>([]);
     const [recentQuests, setRecentQuests] = useState<any[]>([]);
     const [projects, setProjects] = useState<any[]>([]);
+    const [counselingSessions, setCounselingSessions] = useState<any[]>([]);
 
     const supabase = createClient();
 
@@ -36,8 +37,8 @@ export default function StudentDetailPage() {
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-            // 프로필, 활동로그, 퀘스트, 프로젝트 병렬 조회
-            const [profileResult, logsResult, questsResult, projectsResult] = await Promise.all([
+            // 프로필, 활동로그, 퀘스트, 프로젝트, 상담 세션 병렬 조회
+            const [profileResult, logsResult, questsResult, projectsResult, counselingResult] = await Promise.all([
                 supabase.from("profiles").select("*").eq("id", studentId).single(),
                 supabase
                     .from("activity_logs")
@@ -56,6 +57,11 @@ export default function StudentDetailPage() {
                     .eq("user_id", studentId)
                     .order("created_at", { ascending: false })
                     .limit(6),
+                supabase
+                    .from("counseling_sessions")
+                    .select("id, title, messages, updated_at")
+                    .eq("student_id", studentId)
+                    .order("updated_at", { ascending: false }),
             ]);
 
             setStudentProfile(profileResult.data);
@@ -71,6 +77,7 @@ export default function StudentDetailPage() {
 
             setRecentQuests(questsResult.data || []);
             setProjects(projectsResult.data || []);
+            setCounselingSessions(counselingResult.data || []);
             setLoading(false);
         }
 
@@ -182,9 +189,10 @@ export default function StudentDetailPage() {
 
             {/* Tabs */}
             <Tabs defaultValue="quests" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+                <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
                     <TabsTrigger value="quests">퀘스트</TabsTrigger>
                     <TabsTrigger value="portfolio">포트폴리오</TabsTrigger>
+                    <TabsTrigger value="counseling">AI 상담</TabsTrigger>
                     <TabsTrigger value="certs">자격증</TabsTrigger>
                     <TabsTrigger value="skills">스킬</TabsTrigger>
                 </TabsList>
@@ -254,6 +262,42 @@ export default function StudentDetailPage() {
                                         </div>
                                     )}
                                 </div>
+                            ))}
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* 상담 탭 */}
+                <TabsContent value="counseling" className="pt-4">
+                    {counselingSessions.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400 border rounded-lg bg-slate-50">
+                            <MessageSquare className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                            <p>AI 상담 내역이 없습니다.</p>
+                            <p className="text-xs mt-1">(teacher_read_policies.sql 적용 후 활성화됩니다)</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {counselingSessions.map((session: any) => (
+                                <Card key={session.id}>
+                                    <CardHeader className="py-3 px-4 bg-slate-50">
+                                        <CardTitle className="text-sm font-bold flex justify-between">
+                                            {session.title || "상담 세션"}
+                                            <span className="font-normal text-xs text-slate-500">
+                                                {new Date(session.updated_at).toLocaleDateString("ko-KR")}
+                                            </span>
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-4 bg-white max-h-60 overflow-y-auto space-y-3">
+                                        {session.messages?.map((msg: any, i: number) => (
+                                            <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                                <div className={`text-[10px] text-slate-400 mb-1`}>{msg.role === 'user' ? '학생' : 'AI 상담사'}</div>
+                                                <div className={`p-2 rounded-lg text-xs max-w-[90%] ${msg.role === 'user' ? 'bg-purple-100' : 'bg-slate-100'}`}>
+                                                    {msg.content}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
                             ))}
                         </div>
                     )}

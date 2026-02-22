@@ -13,6 +13,7 @@ import {
     MessageSquare,
     Settings,
     BarChart2,
+    BotMessageSquare,
 } from "lucide-react"
 
 interface MobileTabsProps {
@@ -26,7 +27,7 @@ export function MobileTabs({ role }: MobileTabsProps) {
         { name: "홈", href: "/student", icon: LayoutDashboard },
         { name: "로드맵", href: "/student/roadmap", icon: Map },
         { name: "퀘스트", href: "/student/quest", icon: ScrollText },
-        { name: "포트폴리오", href: "/student/portfolio", icon: Archive },
+        { name: "AI상담", href: "/student/counseling", icon: BotMessageSquare },
         { name: "내정보", href: "/profile", icon: User },
     ]
 
@@ -34,7 +35,7 @@ export function MobileTabs({ role }: MobileTabsProps) {
         { name: "홈", href: "/teacher", icon: LayoutDashboard },
         { name: "학생", href: "/teacher/students", icon: Users },
         { name: "피드백", href: "/teacher/feedback", icon: MessageSquare },
-        { name: "분석", href: "/teacher/analytics", icon: BarChart2 },
+        { name: "AI상담", href: "/teacher/counseling", icon: BotMessageSquare },
         { name: "설정", href: "/teacher/settings", icon: Settings },
     ]
 

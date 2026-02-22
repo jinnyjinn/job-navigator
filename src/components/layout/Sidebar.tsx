@@ -14,6 +14,7 @@ import {
     Settings,
     LogOut,
     BarChart2,
+    BotMessageSquare,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/utils/supabase/client"
@@ -43,6 +44,7 @@ export function Sidebar({ role }: SidebarProps) {
         { name: "로드맵", href: "/student/roadmap", icon: Map },
         { name: "퀘스트", href: "/student/quest", icon: ScrollText },
         { name: "포트폴리오", href: "/student/portfolio", icon: Archive },
+        { name: "AI 상담", href: "/student/counseling", icon: BotMessageSquare },
         { name: "프로필", href: "/profile", icon: User },
     ]
 
@@ -50,6 +52,7 @@ export function Sidebar({ role }: SidebarProps) {
         { name: "대시보드", href: "/teacher", icon: LayoutDashboard },
         { name: "학생 관리", href: "/teacher/students", icon: Users },
         { name: "피드백", href: "/teacher/feedback", icon: MessageSquare },
+        { name: "AI 상담 내역", href: "/teacher/counseling", icon: BotMessageSquare },
         { name: "데이터 분석", href: "/teacher/analytics", icon: BarChart2 },
         { name: "학급 설정", href: "/teacher/settings", icon: Settings },
         { name: "프로필", href: "/profile", icon: User },

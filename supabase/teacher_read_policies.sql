@@ -51,3 +51,15 @@ CREATE POLICY "Teachers can view student projects"
       WHERE cm.student_id = projects.user_id
     )
   );
+
+-- Teachers can view counseling_sessions for students in their classrooms
+CREATE POLICY "Teachers can view student counseling sessions"
+  ON public.counseling_sessions FOR SELECT
+  USING (
+    auth.uid() IN (
+      SELECT c.teacher_id
+      FROM public.classrooms c
+      INNER JOIN public.classroom_members cm ON c.id = cm.classroom_id
+      WHERE cm.student_id = counseling_sessions.student_id
+    )
+  );
