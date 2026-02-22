@@ -7,7 +7,8 @@ import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap";
 import { ProfileCard } from "@/components/dashboard/ProfileCard";
 import { DDayCounter } from "@/components/dashboard/DDayCounter";
 import { QuestPreview } from "@/components/dashboard/QuestPreview";
-import { Loader2 } from "lucide-react";
+import { Loader2, BotMessageSquare } from "lucide-react";
+import Link from "next/link";
 
 export default function StudentPage() {
     const [loading, setLoading] = useState(true);
@@ -83,6 +84,28 @@ export default function StudentPage() {
                 </div>
                 <div className="col-span-full md:col-span-1 lg:col-span-1">
                     <QuestPreview />
+                </div>
+                <div className="col-span-full md:col-span-1 lg:col-span-1">
+                    <Link href="/student/counseling" className="block h-full">
+                        <div className="group relative h-full overflow-hidden rounded-xl border-none bg-gradient-to-br from-purple-500 to-indigo-600 p-6 text-white shadow-lg transition-all hover:shadow-xl">
+                            <div className="relative z-10 flex h-full flex-col justify-between">
+                                <div>
+                                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+                                        <BotMessageSquare className="h-6 w-6 text-white" />
+                                    </div>
+                                    <h3 className="text-xl font-bold">AI 진로 상담</h3>
+                                    <p className="mt-2 text-sm text-purple-100 italic">
+                                        "오늘의 진로 고민을 AI 선생님과 나누어보세요."
+                                    </p>
+                                </div>
+                                <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-white/90">
+                                    상담 시작하기 <span className="transition-transform group-hover:translate-x-1">→</span>
+                                </div>
+                            </div>
+                            {/* Decorative background circle */}
+                            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl transition-transform group-hover:scale-150" />
+                        </div>
+                    </Link>
                 </div>
             </section>
 
