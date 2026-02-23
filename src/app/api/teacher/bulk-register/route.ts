@@ -6,6 +6,11 @@ export interface BulkStudent {
     name: string;
     studentNumber: string;
     email?: string;
+    department?: string;
+    className?: string;
+    gender?: string;
+    clubsJoined?: string;
+    photoUrl?: string;
 }
 
 export interface BulkResult {
@@ -13,6 +18,7 @@ export interface BulkResult {
     email: string;
     password: string;
     studentNumber: string;
+    userId?: string; // 사용자 ID 추가
     success: boolean;
     error?: string;
 }
@@ -83,17 +89,12 @@ export async function POST(req: NextRequest) {
     const results: BulkResult[] = [];
 
     for (const student of students) {
-        const { name, studentNumber } = student;
+        const { name, studentNumber, department, className, gender, clubsJoined, photoUrl } = student;
         const email = student.email || `${studentNumber}@jobnavigator.com`;
         const password = `student${studentNumber}`;
 
         if (!name || !studentNumber) {
-            results.push({ name: name || "이름 없음", email, password, studentNumber, success: false, error: "이름 또는 학번이 누락되었습니다." });
-            continue;
-        }
-
-        if (password.length < 6) {
-            results.push({ name, email, password, studentNumber, success: false, error: "학번이 너무 짧습니다 (최소 4자리 필요)." });
+            results.push({ name: name || "이름 없음", email, password, studentNumber, userId: undefined, success: false, error: "이름 또는 학번이 누락되었습니다." });
             continue;
         }
 
@@ -114,7 +115,6 @@ export async function POST(req: NextRequest) {
 
             if (createError) {
                 if (createError.message.includes("already been registered") || createError.message.includes("email_exists")) {
-                    // 이미 등록된 사용자인 경우 ID 조회
                     const { data: existingProfile } = await adminClient
                         .from("profiles")
                         .select("id")
@@ -126,24 +126,35 @@ export async function POST(req: NextRequest) {
                     } else {
                         const { data: { users } } = await adminClient.auth.admin.listUsers();
                         const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-                        if (existingUser) {
-                            userId = existingUser.id;
-                        } else {
-                            results.push({ name, email, password, studentNumber, success: false, error: "중복된 이메일 계정 정보를 조회할 수 없습니다." });
+                        if (existingUser) userId = existingUser.id;
+                        else {
+                            results.push({ name, email, password, studentNumber, userId: undefined, success: false, error: "중복된 계정 정보를 조회할 수 없습니다." });
                             continue;
                         }
                     }
                 } else {
-                    results.push({ name, email, password, studentNumber, success: false, error: createError.message });
+                    results.push({ name, email, password, studentNumber, userId: undefined, success: false, error: createError.message });
                     continue;
                 }
             } else {
                 userId = userData.user.id;
             }
 
-            // 5b. 프로필 upsert (student_number 포함)
+            // 5b. 프로필 upsert (모든 필드 포함)
             await adminClient.from("profiles").upsert(
-                { id: userId, name, role: "student", email, student_number: studentNumber },
+                {
+                    id: userId,
+                    name,
+                    role: "student",
+                    email,
+                    student_number: studentNumber,
+                    department,
+                    major: department, // 학과를 major에도 저장 (호환성)
+                    class_name: className,
+                    gender,
+                    clubs_joined: clubsJoined,
+                    profile_image_url: photoUrl // 올바른 필드명 사용
+                },
                 { onConflict: "id" }
             );
 
@@ -156,13 +167,13 @@ export async function POST(req: NextRequest) {
                 );
 
             if (memberError) {
-                results.push({ name, email, password, studentNumber, success: false, error: `계정 생성됨 (학급 추가 실패: ${memberError.message})` });
+                results.push({ name, email, password, studentNumber, userId, success: false, error: `계정 생성됨 (학급 추가 실패: ${memberError.message})` });
             } else {
-                results.push({ name, email, password, studentNumber, success: true });
+                results.push({ name, email, password, studentNumber, userId, success: true });
             }
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            results.push({ name, email, password, studentNumber, success: false, error: errorMessage });
+            results.push({ name, email, password, studentNumber, userId: undefined, success: false, error: errorMessage });
         }
     }
 

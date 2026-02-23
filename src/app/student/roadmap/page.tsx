@@ -17,10 +17,6 @@ export default function RoadmapPage() {
 
     const supabase = createClient();
 
-    useEffect(() => {
-        fetchRoadmaps();
-    }, []);
-
     const fetchRoadmaps = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -37,6 +33,11 @@ export default function RoadmapPage() {
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        fetchRoadmaps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const getRoadmapsByGrade = (grade: number) => {
         return roadmaps.filter(r => r.grade === grade);

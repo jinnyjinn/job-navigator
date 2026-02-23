@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Search, LayoutGrid, List as ListIcon, MoreHorizontal, Loader2, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -60,7 +60,7 @@ export default function StudentManagementPage() {
 
             const { data: profiles } = await supabase
                 .from("profiles")
-                .select("id, name, total_xp, level, last_active_date")
+                .select("id, name, total_xp, level, last_active_date, profile_image_url")
                 .in("id", studentIds);
 
             // 4. 학생 + 학급 정보 합치기
@@ -182,6 +182,7 @@ export default function StudentManagementPage() {
                                 )}
                                 <CardContent className="pt-6 flex flex-col items-center text-center">
                                     <Avatar className="h-20 w-20 mb-4 border-4 border-slate-50 group-hover:border-purple-50 transition-colors">
+                                        <AvatarImage src={student.profile_image_url || ""} alt={student.name || ""} />
                                         <AvatarFallback className="bg-slate-100 text-slate-600 text-xl font-bold">
                                             {(student.name || "?")[0]}
                                         </AvatarFallback>
@@ -236,6 +237,7 @@ export default function StudentManagementPage() {
                         <div key={student.id} className="grid grid-cols-12 gap-4 p-4 items-center border-b last:border-0 hover:bg-slate-50 transition-colors group">
                             <div className="col-span-4 sm:col-span-3 flex items-center gap-3">
                                 <Avatar className="h-9 w-9 border">
+                                    <AvatarImage src={student.profile_image_url || ""} alt={student.name || ""} />
                                     <AvatarFallback className="text-xs">{(student.name || "?")[0]}</AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0">

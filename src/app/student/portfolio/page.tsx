@@ -20,10 +20,6 @@ export default function PortfolioPage() {
 
     const supabase = createClient();
 
-    useEffect(() => {
-        fetchProjects();
-    }, []);
-
     const fetchProjects = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -39,6 +35,11 @@ export default function PortfolioPage() {
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const filteredProjects = filter === "all"
         ? projects

@@ -8,14 +8,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import {
     ArrowLeft, Upload, FileText, CheckCircle2, XCircle,
-    Download, Loader2, AlertCircle, Users, Info,
+    Download, Loader2, AlertCircle, Users, Info, Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import JSZip from "jszip";
 
 interface ParsedStudent {
     name: string;
     studentNumber: string;
     email?: string;
+    department?: string;
+    className?: string;
+    gender?: string;
+    clubsJoined?: string;
+    photoUrl?: string;
+    photoFile?: File; // ZIP에서 추출한 이미지 파일
 }
 
 interface ImportResult {
@@ -23,19 +30,21 @@ interface ImportResult {
     email: string;
     password: string;
     studentNumber: string;
+    userId?: string; // 사용자 ID 추가
     success: boolean;
     error?: string;
 }
 
-const CSV_TEMPLATE = `이름,학번,이메일(선택)
-김철수,20240001,
-이영희,20240002,
-박민준,20240003,student003@school.kr`;
+const CSV_TEMPLATE = `이름,학번,이메일,학과,반,성별,동아리,사진파일명
+김철수,20240001,,컴퓨터공학과,1반,남,컴퓨터부,20240001.jpg
+이영희,20240002,,정보보안과,2반,여,보안부,20240002.png
+박민준,20240003,student003@school.kr,소프트웨어공학과,1반,남,프로그래밍부,20240003.jpg`;
 
 export default function BulkImportPage() {
     const router = useRouter();
     const supabase = createClient();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const zipInputRef = useRef<HTMLInputElement>(null);
 
     const [classrooms, setClassrooms] = useState<any[]>([]);
     const [selectedClassroom, setSelectedClassroom] = useState("");
@@ -43,8 +52,10 @@ export default function BulkImportPage() {
     const [parsedStudents, setParsedStudents] = useState<ParsedStudent[]>([]);
     const [parseError, setParseError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [uploadingImages, setUploadingImages] = useState(false);
     const [results, setResults] = useState<ImportResult[] | null>(null);
     const [step, setStep] = useState<"input" | "preview" | "done">("input");
+    const [imageFiles, setImageFiles] = useState<Map<string, File>>(new Map()); // 파일명 -> File 객체
 
     useEffect(() => {
         async function loadClassrooms() {
@@ -64,7 +75,7 @@ export default function BulkImportPage() {
         loadClassrooms();
     }, []);
 
-    // CSV 파싱 (students.csv 형식 자동 감지: student_number,name,... 또는 이름,학번,...)
+    // CSV 파싱
     const parseCSV = (text: string): { students: ParsedStudent[]; error: string | null } => {
         const lines = text.trim().split("\n").filter((l) => l.trim());
         if (lines.length === 0) return { students: [], error: "내용이 비어 있습니다." };
@@ -82,39 +93,44 @@ export default function BulkImportPage() {
 
         const startIdx = hasHeader ? 1 : 0;
 
-        // 헤더 기반 컬럼 인덱스 결정 (students.csv: student_number,name,password,...)
-        let nameIdx = 0;
-        let studentNumIdx = 1;
-        let emailIdx = 2;
+        // 헤더 기반 컬럼 인덱스 결정
+        let nameIdx = -1, snIdx = -1, emailIdx = -1, deptIdx = -1, classIdx = -1, genIdx = -1, clubIdx = -1, photoIdx = -1;
 
         if (hasHeader) {
             const headerCols = lines[0].split(",").map((c) => c.trim().toLowerCase());
-            const snIdx = headerCols.findIndex(
-                (c) => c === "student_number" || c === "학번" || c === "studentnumber"
-            );
-            const nmIdx = headerCols.findIndex(
-                (c) => c === "name" || c === "이름"
-            );
-            const emIdx = headerCols.findIndex(
-                (c) => c.includes("email") || c.includes("이메일")
-            );
-            if (snIdx >= 0) studentNumIdx = snIdx;
-            if (nmIdx >= 0) nameIdx = nmIdx;
-            if (emIdx >= 0) emailIdx = emIdx;
+            const findIdx = (keys: string[]) => headerCols.findIndex(c => keys.some(k => c.includes(k)));
+
+            snIdx = findIdx(["student_number", "학번"]);
+            nameIdx = findIdx(["name", "이름"]);
+            emailIdx = findIdx(["email", "이메일"]);
+            deptIdx = findIdx(["department", "학과"]);
+            classIdx = findIdx(["class_name", "반", "class_number"]);
+            genIdx = findIdx(["gender", "성별"]);
+            clubIdx = findIdx(["club", "동아리"]);
+            photoIdx = findIdx(["photo", "사진"]);
+        } else {
+            // 기본 순서: 이름, 학번, ...
+            nameIdx = 0;
+            snIdx = 1;
         }
+
+        // 학번과 이름 컬럼은 필수
+        if (snIdx === -1) snIdx = 0; // Fallback
+        if (nameIdx === -1) nameIdx = 1; // Fallback
 
         for (let i = startIdx; i < lines.length; i++) {
             const line = lines[i].trim();
-            // 쉼표가 있으면 CSV로 처리, 없으면 공백/탭(\s)으로 분리 시도
-            let cols = line.split(",").map((c) => c.trim());
+            // 쉼표로 분리 (따옴표 처리)
+            let cols = splitCSVLine(line);
 
-            if (cols.length === 1 && /\s/.test(line)) {
-                cols = line.split(/\s+/).map((c) => c.trim()).filter(Boolean);
-            }
-
+            const studentNumber = cols[snIdx] || "";
             const name = cols[nameIdx] || "";
-            const studentNumber = cols[studentNumIdx] || "";
-            const email = cols[emailIdx] || undefined;
+            const email = emailIdx >= 0 ? cols[emailIdx] : undefined;
+            const department = deptIdx >= 0 ? cols[deptIdx] : undefined;
+            const className = classIdx >= 0 ? cols[classIdx] : undefined;
+            const gender = genIdx >= 0 ? cols[genIdx] : undefined;
+            const clubsJoined = clubIdx >= 0 ? cols[clubIdx] : undefined;
+            const photoFileName = photoIdx >= 0 ? cols[photoIdx] : undefined;
 
             if (!name) {
                 errors.push(`${i + 1}행: 이름이 없습니다.`);
@@ -125,13 +141,58 @@ export default function BulkImportPage() {
                 continue;
             }
 
-            students.push({ name, studentNumber, email: email || undefined });
+            // 이미지 파일 찾기 (ZIP에서 추출한 파일 또는 URL)
+            let photoUrl: string | undefined = undefined;
+            let photoFile: File | undefined = undefined;
+
+            if (photoFileName) {
+                // URL인지 확인 (http:// 또는 https://로 시작)
+                if (photoFileName.startsWith('http://') || photoFileName.startsWith('https://')) {
+                    photoUrl = photoFileName;
+                } else {
+                    // 파일명인 경우 imageFiles에서 찾기
+                    const file = imageFiles.get(photoFileName.trim());
+                    if (file) {
+                        photoFile = file;
+                    } else {
+                        // 파일을 찾지 못한 경우 경고만 표시 (필수는 아님)
+                        console.warn(`이미지 파일을 찾을 수 없습니다: ${photoFileName}`);
+                    }
+                }
+            }
+
+            students.push({
+                name,
+                studentNumber,
+                email: email || undefined,
+                department,
+                className,
+                gender,
+                clubsJoined,
+                photoUrl,
+                photoFile
+            });
         }
 
-        if (errors.length > 0) {
-            return { students, error: errors.join(" | ") };
-        }
+        if (errors.length > 0) return { students, error: errors.join(" | ") };
         return { students, error: null };
+    };
+
+    // 쉼표로 분리 (따옴표 내부의 쉼표는 무시)
+    const splitCSVLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') inQuotes = !inQuotes;
+            else if (ch === "," && !inQuotes) {
+                result.push(current.replace(/^"|"$/g, "").trim());
+                current = "";
+            } else current += ch;
+        }
+        result.push(current.replace(/^"|"$/g, "").trim());
+        return result;
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,6 +227,67 @@ export default function BulkImportPage() {
         reader.readAsArrayBuffer(file);
     };
 
+    // ZIP 파일 처리
+    const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.endsWith(".zip")) {
+            toast.error("ZIP 파일만 업로드할 수 있습니다.");
+            return;
+        }
+
+        try {
+            toast.loading("ZIP 파일을 처리하는 중...");
+            const zip = new JSZip();
+            const zipData = await zip.loadAsync(file);
+            
+            let csvContent = "";
+            const imageMap = new Map<string, File>();
+
+            // ZIP 파일 내 모든 파일 처리
+            for (const [fileName, zipEntry] of Object.entries(zipData.files)) {
+                // 디렉토리는 건너뛰기
+                if (zipEntry.dir) continue;
+
+                const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
+                
+                // CSV 파일 찾기
+                if (fileExtension === 'csv' || fileExtension === 'txt') {
+                    const content = await zipEntry.async('string');
+                    csvContent = content;
+                }
+                // 이미지 파일 찾기 (jpg, jpeg, png, gif, webp)
+                else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
+                    const blob = await zipEntry.async('blob');
+                    const imageFile = new File([blob], fileName.split('/').pop() || fileName, {
+                        type: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
+                    });
+                    // 파일명만 저장 (경로 제거)
+                    const simpleFileName = fileName.split('/').pop() || fileName;
+                    imageMap.set(simpleFileName, imageFile);
+                }
+            }
+
+            if (!csvContent) {
+                toast.error("ZIP 파일에 CSV 파일을 찾을 수 없습니다.");
+                return;
+            }
+
+            setCsvText(csvContent);
+            setImageFiles(imageMap);
+            
+            if (imageMap.size > 0) {
+                toast.success(`CSV 파일과 ${imageMap.size}개의 이미지 파일을 찾았습니다.`);
+            } else {
+                toast.success("CSV 파일을 찾았습니다. (이미지 파일 없음)");
+            }
+        } catch (err: any) {
+            toast.error(`ZIP 파일 처리 실패: ${err.message}`);
+            console.error(err);
+        }
+    };
+
     const handlePreview = () => {
         if (!csvText.trim()) {
             setParseError("학생 데이터를 입력해주세요.");
@@ -185,17 +307,53 @@ export default function BulkImportPage() {
         }
     };
 
+    // 이미지 업로드 함수
+    const uploadImage = async (file: File, userId: string): Promise<string | null> => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('userId', userId);
+
+            const res = await fetch('/api/teacher/upload-avatar', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || '이미지 업로드 실패');
+            }
+
+            const data = await res.json();
+            return data.url;
+        } catch (err: any) {
+            console.error('Image upload error:', err);
+            return null;
+        }
+    };
+
     const handleSubmit = async () => {
         if (parsedStudents.length === 0 || !selectedClassroom) return;
         setSubmitting(true);
+        setUploadingImages(true);
 
         try {
-            // API 경로 수정: 배포 환경 호환성을 위해 루트 경로 기준 호출
+            // 먼저 학생 계정을 생성하고, 생성된 사용자 ID를 받아옴
+            // 이미지가 있는 학생들의 경우 이미지를 먼저 업로드해야 하지만,
+            // 사용자 ID가 필요하므로 두 단계로 나눠야 함
+            
+            // 1단계: 학생 계정 생성 (이미지 없이)
+            const studentsWithoutImages = parsedStudents.map(s => ({
+                ...s,
+                photoUrl: s.photoUrl, // URL은 그대로 전달
+                photoFile: undefined, // File은 제외
+            }));
+
             const res = await fetch("/api/teacher/bulk-register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    students: parsedStudents,
+                    students: studentsWithoutImages,
                     classroomId: selectedClassroom,
                 }),
             });
@@ -207,16 +365,54 @@ export default function BulkImportPage() {
                     description: data.details || "관리자에게 문의하거나 .env 설정을 확인하세요."
                 });
                 setSubmitting(false);
+                setUploadingImages(false);
                 return;
             }
 
-            setResults(data.results);
+            // 2단계: 성공한 학생들의 이미지 업로드 및 프로필 업데이트
+            const resultsWithImages: ImportResult[] = [];
+            const imageUploadPromises: Promise<void>[] = [];
+
+            for (let i = 0; i < data.results.length; i++) {
+                const result = data.results[i];
+                const student = parsedStudents[i];
+
+                if (result.success && student.photoFile && result.userId) {
+                    // 이미지 업로드
+                    const uploadPromise = uploadImage(student.photoFile, result.userId)
+                        .then(async (imageUrl) => {
+                            if (imageUrl && result.userId) {
+                                // 프로필 업데이트 (이미지 URL 설정)
+                                const { error: updateError } = await supabase
+                                    .from("profiles")
+                                    .update({ profile_image_url: imageUrl })
+                                    .eq("id", result.userId);
+
+                                if (updateError) {
+                                    console.error(`프로필 업데이트 실패 (${result.name}):`, updateError);
+                                }
+                            }
+                        });
+                    imageUploadPromises.push(uploadPromise);
+                }
+
+                resultsWithImages.push(result);
+            }
+
+            // 이미지 업로드 완료 대기
+            if (imageUploadPromises.length > 0) {
+                await Promise.all(imageUploadPromises);
+                toast.success("이미지 업로드 완료");
+            }
+
+            setResults(resultsWithImages);
             setStep("done");
             toast.success(`${data.successCount}명 등록 완료!`);
         } catch (err: any) {
             toast.error("네트워크 오류 발생: " + err.message);
         } finally {
             setSubmitting(false);
+            setUploadingImages(false);
         }
     };
 
@@ -272,8 +468,10 @@ export default function BulkImportPage() {
                                 <div className="text-sm text-blue-800 space-y-1">
                                     <p className="font-semibold">등록 방법</p>
                                     <ul className="list-disc list-inside space-y-0.5 text-blue-700">
-                                        <li>CSV 파일을 업로드하거나 아래 텍스트 영역에 직접 붙여넣기 하세요.</li>
-                                        <li>형식: <code className="bg-blue-100 px-1 rounded text-xs">이름 학번 이메일</code> (쉼표, 공백, 탭 모두 가능)</li>
+                                        <li><strong>방법 1:</strong> ZIP 파일 업로드 (CSV + 이미지 파일 포함) - 권장</li>
+                                        <li><strong>방법 2:</strong> CSV 파일을 업로드하거나 아래 텍스트 영역에 직접 붙여넣기</li>
+                                        <li>ZIP 파일 구조: <code className="bg-blue-100 px-1 rounded text-xs">students.csv</code> + <code className="bg-blue-100 px-1 rounded text-xs">photos/</code> 폴더</li>
+                                        <li>CSV 형식: <code className="bg-blue-100 px-1 rounded text-xs">이름,학번,학과,반,성별,동아리,사진파일명</code></li>
                                         <li>초기 비밀번호: <code className="bg-blue-100 px-1 rounded text-xs">student + 학번</code> (예: student20240001)</li>
                                         <li>이메일 미입력 시: <code className="bg-blue-100 px-1 rounded text-xs">학번@jobnavigator.com</code> 으로 자동 생성</li>
                                     </ul>
@@ -320,6 +518,14 @@ export default function BulkImportPage() {
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        onClick={() => zipInputRef.current?.click()}
+                                        className="gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-50"
+                                    >
+                                        <ImageIcon className="h-3.5 w-3.5" /> ZIP 업로드
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         onClick={() => fileInputRef.current?.click()}
                                         className="gap-1.5"
                                     >
@@ -332,9 +538,23 @@ export default function BulkImportPage() {
                                         className="hidden"
                                         onChange={handleFileUpload}
                                     />
+                                    <input
+                                        ref={zipInputRef}
+                                        type="file"
+                                        accept=".zip"
+                                        className="hidden"
+                                        onChange={handleZipUpload}
+                                    />
                                 </div>
                             </div>
-                            <CardDescription>형식: 이름 학번 이메일(선택) — 쉼표나 공백으로 구분 가능</CardDescription>
+                            <CardDescription>
+                                CSV 형식: 이름,학번,이메일(선택),학과,반,성별,동아리,사진파일명 또는 사진URL
+                                {imageFiles.size > 0 && (
+                                    <span className="ml-2 text-purple-600 font-semibold">
+                                        ({imageFiles.size}개의 이미지 파일 로드됨)
+                                    </span>
+                                )}
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <textarea
@@ -428,7 +648,10 @@ export default function BulkImportPage() {
                             disabled={submitting}
                         >
                             {submitting ? (
-                                <><Loader2 className="h-4 w-4 animate-spin" /> 등록 중...</>
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    {uploadingImages ? "이미지 업로드 중..." : "등록 중..."}
+                                </>
                             ) : (
                                 <><Users className="h-4 w-4" /> {parsedStudents.length}명 일괄 등록</>
                             )}
