@@ -83,6 +83,17 @@ export async function POST(req: NextRequest) {
             .from('avatars')
             .getPublicUrl(filePath);
 
+        // 9. profiles 테이블에 profile_image_url 업데이트 (admin client 사용 → RLS 우회)
+        const { error: profileUpdateError } = await adminClient
+            .from('profiles')
+            .update({ profile_image_url: publicUrl })
+            .eq('id', userId);
+
+        if (profileUpdateError) {
+            console.warn("프로필 이미지 URL 업데이트 실패:", profileUpdateError.message);
+            // 이미지 업로드는 성공했으므로 URL은 반환 (프로필 업데이트 실패는 무시)
+        }
+
         return NextResponse.json({ url: publicUrl });
     } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);

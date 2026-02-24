@@ -378,19 +378,11 @@ export default function BulkImportPage() {
                 const student = parsedStudents[i];
 
                 if (result.success && student.photoFile && result.userId) {
-                    // 이미지 업로드
+                    // 이미지 업로드 (API 내에서 profile_image_url도 같이 업데이트됨)
                     const uploadPromise = uploadImage(student.photoFile, result.userId)
-                        .then(async (imageUrl) => {
-                            if (imageUrl && result.userId) {
-                                // 프로필 업데이트 (이미지 URL 설정)
-                                const { error: updateError } = await supabase
-                                    .from("profiles")
-                                    .update({ profile_image_url: imageUrl })
-                                    .eq("id", result.userId);
-
-                                if (updateError) {
-                                    console.error(`프로필 업데이트 실패 (${result.name}):`, updateError);
-                                }
+                        .then((imageUrl) => {
+                            if (!imageUrl) {
+                                console.warn(`이미지 업로드 실패: ${result.name}`);
                             }
                         });
                     imageUploadPromises.push(uploadPromise);
