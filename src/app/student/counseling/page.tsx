@@ -27,17 +27,41 @@ export default function CounselingPage() {
     const [loading, setLoading] = useState(false);
     const [loadingSessions, setLoadingSessions] = useState(true);
     const [apiKeySet, setApiKeySet] = useState<boolean | null>(null); // null = 로딩 중
+    const [requested, setRequested] = useState(false);
+    const [requestLoading, setRequestLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
 
     useEffect(() => {
         loadSessions();
-        // API 키 설정 여부 확인
-        fetch("/api/counseling")
-            .then(r => r.json())
-            .then(d => setApiKeySet(d.apiKeySet ?? false))
+        // API 키 설정 여부 + 내 요청 상태 동시 확인
+        Promise.all([
+            fetch("/api/counseling").then(r => r.json()),
+            fetch("/api/counseling/request").then(r => r.json()),
+        ])
+            .then(([statusData, requestData]) => {
+                setApiKeySet(statusData.apiKeySet ?? false);
+                setRequested(requestData.requested ?? false);
+            })
             .catch(() => setApiKeySet(false));
     }, []);
+
+    async function handleRequest() {
+        setRequestLoading(true);
+        try {
+            if (requested) {
+                await fetch("/api/counseling/request", { method: "DELETE" });
+                setRequested(false);
+            } else {
+                await fetch("/api/counseling/request", { method: "POST" });
+                setRequested(true);
+            }
+        } catch {
+            // 실패해도 UI는 유지
+        } finally {
+            setRequestLoading(false);
+        }
+    }
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -277,12 +301,32 @@ export default function CounselingPage() {
                 {/* 입력창 */}
                 <div className="border-t p-3">
                     {apiKeySet === false ? (
-                        <div className="flex items-center gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
-                            <LockKeyhole className="h-5 w-5 text-amber-500 shrink-0" />
-                            <div>
-                                <p className="text-sm font-medium text-amber-700">현재 AI 상담을 이용할 수 없습니다</p>
-                                <p className="text-xs text-amber-600 mt-0.5">선생님께 AI 상담 활성화를 요청해주세요.</p>
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                                <LockKeyhole className="h-5 w-5 text-amber-500 shrink-0" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-amber-700">현재 AI 상담을 이용할 수 없습니다</p>
+                                    <p className="text-xs text-amber-600 mt-0.5">
+                                        아래 버튼으로 선생님께 활성화를 요청할 수 있습니다.
+                                    </p>
+                                </div>
                             </div>
+                            <Button
+                                className={`w-full gap-2 ${requested
+                                    ? "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white"}`}
+                                onClick={handleRequest}
+                                disabled={requestLoading}
+                                variant={requested ? "outline" : "default"}
+                            >
+                                {requestLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : requested ? (
+                                    <>✅ 요청 완료 — 선생님 승인 대기 중 (취소하려면 클릭)</>
+                                ) : (
+                                    <>🙋 선생님께 AI 상담 활성화 요청하기</>
+                                )}
+                            </Button>
                         </div>
                     ) : (
                         <>

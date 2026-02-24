@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Copy, Trash2, Users, Plus, Pencil, Settings2, KeyRound, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Copy, Trash2, Users, Plus, Pencil, Settings2, KeyRound, Eye, EyeOff, CheckCircle2, XCircle, BellRing, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import CreateClassroomModal from "@/components/teacher/CreateClassroomModal";
@@ -26,6 +26,10 @@ export default function TeacherSettingsPage() {
     const [showApiKey, setShowApiKey] = useState(false);
     const [apiKeyStatus, setApiKeyStatus] = useState<{ isSet: boolean; updatedAt: string | null } | null>(null);
     const [apiKeyLoading, setApiKeyLoading] = useState(false);
+
+    // AI 상담 요청 학생 목록
+    const [counselingRequests, setCounselingRequests] = useState<any[]>([]);
+    const [requestsLoading, setRequestsLoading] = useState(false);
 
     const supabase = createClient();
     const router = useRouter();
@@ -58,6 +62,7 @@ export default function TeacherSettingsPage() {
     useEffect(() => {
         loadClassrooms();
         loadApiKeyStatus();
+        loadCounselingRequests();
         const timer = setInterval(loadClassrooms, 5 * 60 * 1000);
         return () => clearInterval(timer);
     }, []);
@@ -67,6 +72,21 @@ export default function TeacherSettingsPage() {
         if (res.ok) {
             const data = await res.json();
             setApiKeyStatus(data);
+        }
+    }
+
+    async function loadCounselingRequests() {
+        setRequestsLoading(true);
+        try {
+            const res = await fetch("/api/teacher/counseling-requests");
+            if (res.ok) {
+                const data = await res.json();
+                setCounselingRequests(data.requests || []);
+            }
+        } catch {
+            // 조용히 실패
+        } finally {
+            setRequestsLoading(false);
         }
     }
 
@@ -395,8 +415,15 @@ export default function TeacherSettingsPage() {
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
                             <KeyRound className="h-5 w-5 text-purple-600" />
                         </div>
-                        <div>
-                            <CardTitle className="text-lg">AI 상담 API 키 설정</CardTitle>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-lg">AI 상담 API 키 설정</CardTitle>
+                                {counselingRequests.length > 0 && (
+                                    <Badge className="bg-red-500 text-white text-xs px-2 py-0.5 animate-pulse">
+                                        {counselingRequests.length}명 요청
+                                    </Badge>
+                                )}
+                            </div>
                             <CardDescription>
                                 Gemini API 키를 등록하면 학생들이 AI 진로 상담을 이용할 수 있습니다.
                             </CardDescription>
@@ -404,6 +431,79 @@ export default function TeacherSettingsPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {/* 학생 요청 현황 */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <BellRing className="h-4 w-4 text-amber-500" />
+                                <span className="text-sm font-medium text-slate-700">학생 AI 상담 요청 현황</span>
+                                {counselingRequests.length > 0 && (
+                                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs">
+                                        {counselingRequests.length}명 대기 중
+                                    </Badge>
+                                )}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={loadCounselingRequests}
+                                disabled={requestsLoading}
+                                className="text-slate-400 hover:text-slate-600 h-7 px-2"
+                            >
+                                <RefreshCw className={cn("h-3.5 w-3.5", requestsLoading && "animate-spin")} />
+                            </Button>
+                        </div>
+
+                        {requestsLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : counselingRequests.length === 0 ? (
+                            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-center">
+                                <p className="text-xs text-slate-400">현재 AI 상담을 요청한 학생이 없습니다</p>
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 divide-y divide-amber-100 max-h-48 overflow-y-auto">
+                                {counselingRequests.map((req: any) => {
+                                    const p = req.profiles;
+                                    return (
+                                        <div key={req.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-200 shrink-0">
+                                                    <span className="text-xs font-bold text-amber-700">
+                                                        {p?.name?.[0] ?? "?"}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="font-medium text-slate-800">{p?.name ?? "이름 없음"}</span>
+                                                    {p?.grade && p?.class_name && (
+                                                        <span className="ml-1.5 text-xs text-slate-500">
+                                                            {p.grade}학년 {p.class_name}반
+                                                            {p?.student_id && ` · ${p.student_id}번`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-slate-400 shrink-0 ml-2">
+                                                {new Date(req.created_at).toLocaleDateString("ko-KR", {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {counselingRequests.length > 0 && (
+                            <p className="text-xs text-amber-600">
+                                💡 API 키를 등록하면 위 학생들이 즉시 AI 상담을 이용할 수 있습니다.
+                            </p>
+                        )}
+                    </div>
+
                     {/* 현재 상태 표시 */}
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 border">
                         {apiKeyStatus?.isSet ? (
