@@ -36,7 +36,7 @@ export default function TeacherDashboard() {
 
         // 1. 교사 프로필 + 학급 목록 병렬 조회
         const [profileResult, classroomsResult] = await Promise.all([
-            supabase.from("profiles").select("name, school_name, major, profile_image_url").eq("id", user.id).single(),
+            supabase.from("profiles").select("name, school_name, major, avatar_url").eq("id", user.id).single(),
             supabase.from("classrooms").select("id, name, grade, class_number, join_code").eq("teacher_id", user.id).eq("is_active", true),
         ]);
 
@@ -179,7 +179,7 @@ export default function TeacherDashboard() {
             <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Avatar className="h-16 w-16 border-2 border-purple-100">
-                        <AvatarImage src={teacherProfile?.profile_image_url} />
+                        <AvatarImage src={teacherProfile?.avatar_url} />
                         <AvatarFallback className="bg-purple-100 text-purple-700">
                             <User className="h-8 w-8" />
                         </AvatarFallback>

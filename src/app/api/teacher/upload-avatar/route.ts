@@ -83,10 +83,10 @@ export async function POST(req: NextRequest) {
             .from('avatars')
             .getPublicUrl(filePath);
 
-        // 9. profiles 테이블에 profile_image_url 업데이트 (admin client 사용 → RLS 우회)
+        // 9. profiles 테이블에 avatar_url 업데이트 (admin client 사용 → RLS 우회)
         const { error: profileUpdateError } = await adminClient
             .from('profiles')
-            .update({ profile_image_url: publicUrl })
+            .update({ avatar_url: publicUrl })
             .eq('id', userId);
 
         if (profileUpdateError) {

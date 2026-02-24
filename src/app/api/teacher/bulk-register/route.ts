@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
                     class_name: className,
                     gender,
                     clubs_joined: clubsJoined,
-                    profile_image_url: photoUrl // 올바른 필드명 사용
+                    avatar_url: photoUrl
                 },
                 { onConflict: "id" }
             );

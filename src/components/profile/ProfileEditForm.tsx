@@ -71,7 +71,7 @@ export function ProfileEditForm({ user, profile, onUpdate }: ProfileEditFormProp
 
             const { error: updateError } = await supabase
                 .from('profiles')
-                .update({ profile_image_url: publicUrl })
+                .update({ avatar_url: publicUrl })
                 .eq('id', user.id);
 
             if (updateError) throw updateError;
@@ -90,7 +90,7 @@ export function ProfileEditForm({ user, profile, onUpdate }: ProfileEditFormProp
             <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
                 <div className="relative group">
                     <Avatar className="h-24 w-24 sm:h-32 sm:w-32 cursor-pointer border-4 border-white shadow-lg">
-                        <AvatarImage src={profile?.profile_image_url} />
+                        <AvatarImage src={profile?.avatar_url} />
                         <AvatarFallback><User className="h-12 w-12 text-slate-400" /></AvatarFallback>
                     </Avatar>
                     <div
