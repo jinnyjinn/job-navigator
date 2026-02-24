@@ -237,11 +237,11 @@ export default function BulkImportPage() {
             return;
         }
 
+        const toastId = toast.loading("ZIP 파일을 처리하는 중...");
         try {
-            toast.loading("ZIP 파일을 처리하는 중...");
             const zip = new JSZip();
             const zipData = await zip.loadAsync(file);
-            
+
             let csvContent = "";
             const imageMap = new Map<string, File>();
 
@@ -251,7 +251,7 @@ export default function BulkImportPage() {
                 if (zipEntry.dir) continue;
 
                 const fileExtension = fileName.split('.').pop()?.toLowerCase() || '';
-                
+
                 // CSV 파일 찾기
                 if (fileExtension === 'csv' || fileExtension === 'txt') {
                     const content = await zipEntry.async('string');
@@ -268,6 +268,8 @@ export default function BulkImportPage() {
                     imageMap.set(simpleFileName, imageFile);
                 }
             }
+
+            toast.dismiss(toastId);
 
             if (!csvContent) {
                 // CSV가 없어도 이미지만 로드 가능 (CSV는 따로 붙여넣기 가능)
@@ -289,6 +291,7 @@ export default function BulkImportPage() {
                 toast.success("CSV 파일을 찾았습니다. (이미지 파일 없음)");
             }
         } catch (err: any) {
+            toast.dismiss(toastId);
             toast.error(`ZIP 파일 처리 실패: ${err.message}`);
             console.error(err);
         }
