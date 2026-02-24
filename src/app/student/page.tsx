@@ -89,9 +89,9 @@ export default function StudentPage() {
                     <QuestPreview />
                 </div>
                 <div className="col-span-full md:col-span-1 lg:col-span-1">
-                    <Link href="/student/counseling" className="block h-full">
-                        <div className="group relative h-full overflow-hidden rounded-xl border-none bg-gradient-to-br from-purple-500 to-indigo-600 p-6 text-white shadow-lg transition-all hover:shadow-xl">
-                            <div className="relative z-10 flex h-full flex-col justify-between">
+                    <Link href="/student/counseling" className="block">
+                        <div className="group relative overflow-hidden rounded-xl border-none bg-gradient-to-br from-purple-500 to-indigo-600 p-6 text-white shadow-lg transition-all hover:shadow-xl min-h-[160px]">
+                            <div className="relative z-10 flex flex-col justify-between gap-4">
                                 <div>
                                     <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
                                         <BotMessageSquare className="h-6 w-6 text-white" />
