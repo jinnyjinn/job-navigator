@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Copy, Trash2, Users, Plus, Pencil, Settings2 } from "lucide-react";
+import { Loader2, Copy, Trash2, Users, Plus, Pencil, Settings2, KeyRound, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import CreateClassroomModal from "@/components/teacher/CreateClassroomModal";
@@ -20,6 +20,12 @@ export default function TeacherSettingsPage() {
     const [editName, setEditName] = useState("");
     const [editGrade, setEditGrade] = useState<number>(1);
     const [editClassNumber, setEditClassNumber] = useState<number>(1);
+
+    // AI 상담 API 키 관련 상태
+    const [apiKeyInput, setApiKeyInput] = useState("");
+    const [showApiKey, setShowApiKey] = useState(false);
+    const [apiKeyStatus, setApiKeyStatus] = useState<{ isSet: boolean; updatedAt: string | null } | null>(null);
+    const [apiKeyLoading, setApiKeyLoading] = useState(false);
 
     const supabase = createClient();
     const router = useRouter();
@@ -51,10 +57,57 @@ export default function TeacherSettingsPage() {
 
     useEffect(() => {
         loadClassrooms();
-        // 5분마다 자동 새로고침 (데이터 동기화 보장)
+        loadApiKeyStatus();
         const timer = setInterval(loadClassrooms, 5 * 60 * 1000);
         return () => clearInterval(timer);
     }, []);
+
+    async function loadApiKeyStatus() {
+        const res = await fetch("/api/teacher/api-settings");
+        if (res.ok) {
+            const data = await res.json();
+            setApiKeyStatus(data);
+        }
+    }
+
+    async function handleSaveApiKey() {
+        if (!apiKeyInput.trim()) {
+            toast.error("API 키를 입력해주세요.");
+            return;
+        }
+        setApiKeyLoading(true);
+        try {
+            const res = await fetch("/api/teacher/api-settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ apiKey: apiKeyInput.trim() }),
+            });
+            if (!res.ok) throw new Error((await res.json()).error);
+            toast.success("Gemini API 키가 저장되었습니다. 학생 AI 상담이 활성화됩니다.");
+            setApiKeyInput("");
+            setShowApiKey(false);
+            await loadApiKeyStatus();
+        } catch (err: any) {
+            toast.error("저장 실패", { description: err.message });
+        } finally {
+            setApiKeyLoading(false);
+        }
+    }
+
+    async function handleDeleteApiKey() {
+        if (!confirm("API 키를 삭제하면 학생들이 AI 상담을 사용할 수 없게 됩니다.\n정말 삭제하시겠습니까?")) return;
+        setApiKeyLoading(true);
+        try {
+            const res = await fetch("/api/teacher/api-settings", { method: "DELETE" });
+            if (!res.ok) throw new Error((await res.json()).error);
+            toast.success("API 키가 삭제되었습니다. AI 상담이 비활성화됩니다.");
+            await loadApiKeyStatus();
+        } catch (err: any) {
+            toast.error("삭제 실패", { description: err.message });
+        } finally {
+            setApiKeyLoading(false);
+        }
+    }
 
     const copyCode = (code: string) => {
         navigator.clipboard.writeText(code);
@@ -334,6 +387,101 @@ export default function TeacherSettingsPage() {
                     }}
                 />
             )}
+
+            {/* AI 상담 API 키 설정 */}
+            <Card className="border-2 border-purple-100">
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                            <KeyRound className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg">AI 상담 API 키 설정</CardTitle>
+                            <CardDescription>
+                                Gemini API 키를 등록하면 학생들이 AI 진로 상담을 이용할 수 있습니다.
+                            </CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {/* 현재 상태 표시 */}
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 border">
+                        {apiKeyStatus?.isSet ? (
+                            <>
+                                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-green-700">API 키 등록됨 — 학생 AI 상담 활성화 중</p>
+                                    {apiKeyStatus.updatedAt && (
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            마지막 업데이트: {new Date(apiKeyStatus.updatedAt).toLocaleString("ko-KR")}
+                                        </p>
+                                    )}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 border-red-200 hover:bg-red-50 shrink-0"
+                                    onClick={handleDeleteApiKey}
+                                    disabled={apiKeyLoading}
+                                >
+                                    {apiKeyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                                    키 삭제
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <XCircle className="h-5 w-5 text-slate-400 shrink-0" />
+                                <p className="text-sm text-slate-500">API 키 미등록 — 학생 AI 상담 비활성화 상태</p>
+                            </>
+                        )}
+                    </div>
+
+                    {/* API 키 입력 */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                            {apiKeyStatus?.isSet ? "새 API 키로 교체" : "Gemini API 키 입력"}
+                        </label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Input
+                                    type={showApiKey ? "text" : "password"}
+                                    value={apiKeyInput}
+                                    onChange={(e) => setApiKeyInput(e.target.value)}
+                                    placeholder="AIzaSy..."
+                                    className="pr-10"
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveApiKey(); }}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    onClick={() => setShowApiKey(!showApiKey)}
+                                >
+                                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                            <Button
+                                className="bg-purple-600 hover:bg-purple-700 shrink-0"
+                                onClick={handleSaveApiKey}
+                                disabled={apiKeyLoading || !apiKeyInput.trim()}
+                            >
+                                {apiKeyLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                                {apiKeyStatus?.isSet ? "교체" : "저장"}
+                            </Button>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                            Google AI Studio에서 발급받은 Gemini API 키를 입력하세요.{" "}
+                            <a
+                                href="https://aistudio.google.com/app/apikey"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-purple-600 hover:underline"
+                            >
+                                API 키 발급 받기 →
+                            </a>
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

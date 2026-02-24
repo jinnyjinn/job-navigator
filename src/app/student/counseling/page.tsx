@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Send, Bot, User, Plus, Loader2, MessageCircle } from "lucide-react";
+import { Send, Bot, User, Plus, Loader2, MessageCircle, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -26,11 +26,17 @@ export default function CounselingPage() {
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [loadingSessions, setLoadingSessions] = useState(true);
+    const [apiKeySet, setApiKeySet] = useState<boolean | null>(null); // null = 로딩 중
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
 
     useEffect(() => {
         loadSessions();
+        // API 키 설정 여부 확인
+        fetch("/api/counseling")
+            .then(r => r.json())
+            .then(d => setApiKeySet(d.apiKeySet ?? false))
+            .catch(() => setApiKeySet(false));
     }, []);
 
     useEffect(() => {
@@ -82,7 +88,10 @@ export default function CounselingPage() {
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) {
+                if (data.limitType === "no_api_key") setApiKeySet(false);
+                throw new Error(data.error);
+            }
 
             const assistantMessage: Message = {
                 role: "assistant",
@@ -267,31 +276,43 @@ export default function CounselingPage() {
 
                 {/* 입력창 */}
                 <div className="border-t p-3">
-                    <div className="flex gap-2">
-                        <textarea
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    sendMessage();
-                                }
-                            }}
-                            placeholder="진로 고민을 입력하세요... (Enter로 전송)"
-                            rows={2}
-                            className="flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        />
-                        <Button
-                            onClick={sendMessage}
-                            disabled={!input.trim() || loading}
-                            className="self-end bg-blue-600 hover:bg-blue-700 rounded-xl px-3"
-                        >
-                            <Send className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-                        AI 상담 내용은 선생님이 확인할 수 있습니다
-                    </p>
+                    {apiKeySet === false ? (
+                        <div className="flex items-center gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                            <LockKeyhole className="h-5 w-5 text-amber-500 shrink-0" />
+                            <div>
+                                <p className="text-sm font-medium text-amber-700">현재 AI 상담을 이용할 수 없습니다</p>
+                                <p className="text-xs text-amber-600 mt-0.5">선생님께 AI 상담 활성화를 요청해주세요.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex gap-2">
+                                <textarea
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                            e.preventDefault();
+                                            sendMessage();
+                                        }
+                                    }}
+                                    placeholder="진로 고민을 입력하세요... (Enter로 전송)"
+                                    rows={2}
+                                    className="flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                />
+                                <Button
+                                    onClick={sendMessage}
+                                    disabled={!input.trim() || loading}
+                                    className="self-end bg-blue-600 hover:bg-blue-700 rounded-xl px-3"
+                                >
+                                    <Send className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+                                AI 상담 내용은 선생님이 확인할 수 있습니다
+                            </p>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
