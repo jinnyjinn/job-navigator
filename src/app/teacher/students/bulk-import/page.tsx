@@ -270,13 +270,19 @@ export default function BulkImportPage() {
             }
 
             if (!csvContent) {
-                toast.error("ZIP 파일에 CSV 파일을 찾을 수 없습니다.");
+                // CSV가 없어도 이미지만 로드 가능 (CSV는 따로 붙여넣기 가능)
+                if (imageMap.size > 0) {
+                    setImageFiles(imageMap);
+                    toast.success(`이미지 ${imageMap.size}개를 로드했습니다. CSV는 위 텍스트창에 직접 붙여넣으세요.`);
+                } else {
+                    toast.error("ZIP 파일에 CSV 또는 이미지 파일을 찾을 수 없습니다.");
+                }
                 return;
             }
 
             setCsvText(csvContent);
             setImageFiles(imageMap);
-            
+
             if (imageMap.size > 0) {
                 toast.success(`CSV 파일과 ${imageMap.size}개의 이미지 파일을 찾았습니다.`);
             } else {
