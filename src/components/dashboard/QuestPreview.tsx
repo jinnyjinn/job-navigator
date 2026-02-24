@@ -53,7 +53,7 @@ export function QuestPreview() {
                     <ScrollText className="h-4 w-4 text-orange-500" />
                     오늘의 퀘스트
                 </CardTitle>
-                <Link href="/quest">
+                <Link href="/student/quest">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
                         <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -68,7 +68,7 @@ export function QuestPreview() {
                     <div className="text-center py-6 text-xs text-muted-foreground">
                         오늘 등록된 퀘스트가 없습니다.
                         <br />
-                        <Link href="/quest" className="text-orange-500 hover:underline mt-1 inline-block">
+                        <Link href="/student/quest" className="text-orange-500 hover:underline mt-1 inline-block">
                             퀘스트 추가하기 →
                         </Link>
                     </div>

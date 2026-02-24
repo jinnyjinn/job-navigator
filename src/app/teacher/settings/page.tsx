@@ -89,9 +89,8 @@ export default function TeacherSettingsPage() {
             toast.success("학급 정보가 수정되었습니다.");
             setEditingId(null);
 
-            // 데이터 재로딩 후 강제 새로고침 (가장 확실한 방법)
             await loadClassrooms();
-            window.location.reload();
+            router.refresh();
         } catch (error: any) {
             console.error("Update Error:", error);
             toast.error("수정 실패", { description: error.message });
@@ -155,8 +154,6 @@ export default function TeacherSettingsPage() {
             // 데이터 재호출 및 경로 새로고침
             await loadClassrooms();
             router.refresh();
-            // 가장 확실한 방법으로 0.5초 뒤 페이지 전체 새로고침 (선택 사항)
-            setTimeout(() => window.location.reload(), 500);
         } catch (error: any) {
             console.error("Delete Error:", error);
             toast.error("삭제 실패", { description: error.message });

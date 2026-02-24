@@ -6,7 +6,6 @@ import { DailyQuest, QuestCategory } from "@/types/database";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
@@ -15,7 +14,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, Clock, Flame, Trophy } from "lucide-react";
+import { Plus, Trash2, Flame, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 
@@ -24,7 +23,6 @@ export function QuestList() {
     const [loading, setLoading] = useState(true);
     const [newQuest, setNewQuest] = useState("");
     const [category, setCategory] = useState<QuestCategory>("study");
-    const [xpAwarded, setXpAwarded] = useState<number | null>(null);
 
     const supabase = createClient();
     const today = format(new Date(), "yyyy-MM-dd");

@@ -20,7 +20,10 @@ export default function StudentPage() {
     useEffect(() => {
         async function loadDashboardData() {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) {
+                setLoading(false);
+                return;
+            }
 
             // 프로필 & 활동 로그 병렬 조회
             const ninetyDaysAgo = new Date();

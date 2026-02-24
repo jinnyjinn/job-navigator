@@ -5,10 +5,10 @@ import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, Legend, LineChart, Line
+    Legend, LineChart, Line
 } from "recharts";
 import { Loader2, Users, TrendingUp, Award, BookOpen } from "lucide-react";
-import { calculateLevel, calculateProgress } from "@/utils/gamification";
+import { calculateProgress } from "@/utils/gamification";
 
 const COLORS = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#6366f1"];
 

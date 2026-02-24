@@ -238,7 +238,7 @@ export default function AuthPage() {
                     </Tabs>
                 </CardContent>
                 <CardFooter className="text-center text-xs text-slate-500">
-                    Job Navigator &copy; 2024
+                    Job Navigator &copy; 2026
                 </CardFooter>
             </Card>
         </div>

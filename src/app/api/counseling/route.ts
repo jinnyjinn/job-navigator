@@ -44,41 +44,43 @@ export async function POST(req: NextRequest) {
         const result = await chat.sendMessage(lastMessage.content);
         const responseText = result.response.text();
 
-        // Supabase에 세션 저장 (upsert)
+        // Supabase에 세션 저장 (실패해도 AI 응답은 반환)
         const updatedMessages = [
             ...messages,
             { role: "assistant", content: responseText, timestamp: new Date().toISOString() },
         ];
 
-        if (sessionId) {
-            await supabase
-                .from("counseling_sessions")
-                .update({
-                    messages: updatedMessages,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", sessionId)
-                .eq("student_id", user.id);
-        } else {
-            // 첫 메시지면 제목을 첫 질문으로 설정
-            const title = lastMessage.content.slice(0, 50) + (lastMessage.content.length > 50 ? "..." : "");
-            const { data: newSession } = await supabase
-                .from("counseling_sessions")
-                .insert({
-                    student_id: user.id,
-                    messages: updatedMessages,
-                    title,
-                })
-                .select("id")
-                .single();
+        let savedSessionId: string | null = sessionId ?? null;
 
-            return NextResponse.json({
-                reply: responseText,
-                sessionId: newSession?.id,
-            });
+        try {
+            if (sessionId) {
+                await supabase
+                    .from("counseling_sessions")
+                    .update({
+                        messages: updatedMessages,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", sessionId)
+                    .eq("student_id", user.id);
+            } else {
+                // 첫 메시지면 제목을 첫 질문으로 설정
+                const title = lastMessage.content.slice(0, 50) + (lastMessage.content.length > 50 ? "..." : "");
+                const { data: newSession } = await supabase
+                    .from("counseling_sessions")
+                    .insert({
+                        student_id: user.id,
+                        messages: updatedMessages,
+                        title,
+                    })
+                    .select("id")
+                    .single();
+                savedSessionId = newSession?.id ?? null;
+            }
+        } catch (dbError) {
+            console.warn("counseling_sessions 저장 실패 (테이블 미생성일 수 있음):", dbError);
         }
 
-        return NextResponse.json({ reply: responseText, sessionId });
+        return NextResponse.json({ reply: responseText, sessionId: savedSessionId });
     } catch (error: any) {
         console.error("Counseling API error:", error);
         return NextResponse.json(

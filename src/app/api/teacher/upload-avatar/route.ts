@@ -53,6 +53,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "지원하지 않는 이미지 형식입니다." }, { status: 400 });
         }
 
+        // 5-1. avatars 버킷이 없으면 자동 생성
+        const { data: buckets } = await adminClient.storage.listBuckets();
+        const bucketExists = buckets?.some((b) => b.id === 'avatars');
+        if (!bucketExists) {
+            await adminClient.storage.createBucket('avatars', { public: true });
+        }
+
         // 6. 파일을 ArrayBuffer로 변환
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -63,7 +70,7 @@ export async function POST(req: NextRequest) {
             .from('avatars')
             .upload(filePath, buffer, {
                 contentType: file.type,
-                upsert: false
+                upsert: true
             });
 
         if (uploadError) {
