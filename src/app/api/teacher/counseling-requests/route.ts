@@ -36,25 +36,36 @@ export async function GET() {
 
     const admin = getAdminClient();
 
-    // counseling_requests + profiles join
-    const { data, error: fetchError } = await admin
+    // 1단계: counseling_requests 목록 조회
+    const { data: requests, error: reqError } = await admin
         .from("counseling_requests")
-        .select(`
-            id,
-            student_id,
-            created_at,
-            profiles!counseling_requests_student_id_fkey (
-                name,
-                student_id,
-                grade,
-                class_name
-            )
-        `)
+        .select("id, student_id, created_at")
         .order("created_at", { ascending: false });
 
-    if (fetchError) {
-        return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    if (reqError) {
+        return NextResponse.json({ error: reqError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ requests: data || [] });
+    if (!requests || requests.length === 0) {
+        return NextResponse.json({ requests: [] });
+    }
+
+    // 2단계: 해당 학생들의 profiles 조회 (student_id = profiles.id)
+    const studentIds = requests.map((r) => r.student_id);
+    const { data: profiles } = await admin
+        .from("profiles")
+        .select("id, name, student_id, grade, class_name")
+        .in("id", studentIds);
+
+    // 3단계: 병합
+    const profileMap = Object.fromEntries(
+        (profiles || []).map((p) => [p.id, p])
+    );
+
+    const result = requests.map((r) => ({
+        ...r,
+        profiles: profileMap[r.student_id] ?? null,
+    }));
+
+    return NextResponse.json({ requests: result });
 }
